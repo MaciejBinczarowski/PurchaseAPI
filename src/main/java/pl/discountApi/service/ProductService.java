@@ -40,4 +40,8 @@ public class ProductService
         Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
         productRepository.delete(product);
     }
+
+    public Optional<Product> getProductByName(String name) {
+        return productRepository.findByName(name);
+    }
 }

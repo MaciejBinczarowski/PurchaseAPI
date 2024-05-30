@@ -28,5 +28,4 @@ public class PromoCodeService
     {
         return promoCodeRepository.findByCode(code).orElseThrow(() -> new RuntimeException("Promo code not found"));
     }
-
 }

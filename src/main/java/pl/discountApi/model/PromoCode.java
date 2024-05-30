@@ -1,5 +1,6 @@
 package pl.discountApi.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import jakarta.persistence.Column;
@@ -32,7 +33,7 @@ public class PromoCode
     private LocalDate expirationDate;
 
     @Column(nullable = false)
-    private int discount;
+    private BigDecimal discount;
 
     // change it to enum in the future
     @Column(nullable = false)
