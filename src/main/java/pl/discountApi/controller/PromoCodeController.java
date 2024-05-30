@@ -4,7 +4,6 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,16 +29,16 @@ public class PromoCodeController
     }
 
     @GetMapping
-    public ResponseEntity<List<PromoCode>> getAllPromoCodes()
+    public ResponseEntity<List<String>> getAllPromoCodes()
     {
-        List<PromoCode> promoCodes = promoCodeService.getAllPromoCodes();
+        List<String> promoCodes = promoCodeService.getAllPromoCodes();
         return ResponseEntity.ok(promoCodes);
     }
 
     @GetMapping("/{code}")
     public ResponseEntity<PromoCode> getPromoCode(@PathVariable String code)
     {
-        PromoCode promoCode = promoCodeService.getPromoCode(code);
+        PromoCode promoCode = promoCodeService.getPromoCode(code).orElseThrow(() -> new RuntimeException("Promo code not found"));
         return ResponseEntity.ok(promoCode);
     }
 }

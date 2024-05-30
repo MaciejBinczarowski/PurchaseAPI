@@ -1,6 +1,8 @@
 package pl.discountApi.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -11,8 +13,6 @@ import pl.discountApi.model.Product;
 import pl.discountApi.model.PromoCode;
 import pl.discountApi.model.Purchase;
 import pl.discountApi.repository.PurchaseRepository;
-import pl.discountApi.service.ProductService;
-import pl.discountApi.service.PromoCodeService;
 
 @Service
 public class PurchaseService 
@@ -24,50 +24,66 @@ public class PurchaseService
     @Autowired
     private PromoCodeService promoCodeService;
 
-    public BigDecimal calculateDiscountPrice(String productName, String promoCode) 
+    public Optional<BigDecimal> calculateDiscountPrice(String productName, String promoCode) 
     {
-        if (productName == null) 
-        {
-            throw new RuntimeException("Product name is required");
-        }
+        BigDecimal regularPrice = productService.getProductByName(productName).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found")).getPrice();
+        BigDecimal discount = promoCodeService.getPromoCode(promoCode).get().getDiscount();
+        String discountType = promoCodeService.getPromoCode(promoCode).get().getType();
 
-        if (promoCode == null) 
-        {
-            throw new RuntimeException("Promo code is required");
-        }
+        BigDecimal discountPrice = BigDecimal.ZERO;
 
-        Product product = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found"));
-        PromoCode promoCodeDetails = promoCodeService.getPromoCode(promoCode);
-
-        if (promoCodeDetails == null) 
+        if (discountType.equals("normal")) 
         {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Promo code not found");
-        }
-
-        if (promoCodeDetails.getCurrency().equals(product.getCurrency())) 
-        {
-            return product.getPrice().subtract(promoCodeDetails.getDiscount());
+            discountPrice = calculateDiscountPriceNormal(regularPrice, discount);
         } 
-        else 
+        else if (discountType.equals("percentage")) 
         {
-            throw new RuntimeException("Currency mismatch");
+            discountPrice = calculateDiscountPricePercentage(regularPrice, discount);
         }
+
+        if (discountPrice.compareTo(BigDecimal.ZERO) < 0) 
+        {
+            return Optional.of(BigDecimal.ZERO);
+        }
+        return Optional.of(discountPrice);
     }
 
-    public void purchaseProduct(String productName, String promoCode) 
+    private BigDecimal calculateDiscountPriceNormal(BigDecimal regularPrice, BigDecimal discount) 
     {
-        BigDecimal regularPrice = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getPrice();
-        String currency = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getCurrency();
-        BigDecimal discountPrice = calculateDiscountPrice(productName, promoCode);
-        Purchase purchase = new Purchase(productName, regularPrice, currency, discountPrice);
-        purchaseRepository.save(purchase);
+        BigDecimal discountPrice = regularPrice.subtract(discount);
+
+        if (discountPrice.compareTo(BigDecimal.ZERO) < 0) 
+        {
+            return BigDecimal.ZERO;
+        }
+        return discountPrice;
     }
 
-    public void purchaseProduct(String productName) 
+    private BigDecimal calculateDiscountPricePercentage(BigDecimal regularPrice, BigDecimal discount) 
     {
-        BigDecimal regularPrice = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getPrice();
-        String currency = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getCurrency();
-        Purchase purchase = new Purchase(productName, regularPrice, currency, regularPrice);
-        purchaseRepository.save(purchase);
+        BigDecimal discountPrice = regularPrice.subtract(regularPrice.multiply(discount.divide(BigDecimal.valueOf(100))));
+
+        if (discountPrice.compareTo(BigDecimal.ZERO) < 0) 
+        {
+            return BigDecimal.ZERO;
+        }
+        return discountPrice;
     }
+
+    // public void purchaseProduct(String productName, String promoCode) 
+    // {
+    //     BigDecimal regularPrice = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getPrice();
+    //     String currency = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getCurrency();
+    //     BigDecimal discountPrice = calculateDiscountPrice(productName, promoCode);
+    //     Purchase purchase = new Purchase(productName, regularPrice, currency, discountPrice);
+    //     purchaseRepository.save(purchase);
+    // }
+
+    // public void purchaseProduct(String productName) 
+    // {
+    //     BigDecimal regularPrice = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getPrice();
+    //     String currency = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getCurrency();
+    //     Purchase purchase = new Purchase(productName, regularPrice, currency, regularPrice);
+    //     purchaseRepository.save(purchase);
+    // }
 }
