@@ -1,9 +1,13 @@
 package pl.discountApi.service;
 
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Optional;
 
+import org.hibernate.mapping.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -97,5 +101,25 @@ public class PurchaseService
         purchaseRepository.save(purchase);
     
         return purchase;
+    }
+
+    public void generateSalesReport()
+    {
+        ArrayList<HashMap<String, String>> currencies = new ArrayList<>();
+
+        purchaseRepository.findDistinctCurrency().forEach(currency -> {
+            System.out.println("Currency: " + currency);
+
+            //get sum of regular prices
+            BigDecimal sumOfRegularPrices = purchaseRepository.sumRegularPriceByCurrency(currency);
+
+            // sum of real paid value
+            BigDecimal sumOfDiscountPrices = purchaseRepository.sumDiscountAmountByCurrency(currency);
+
+            // total discount amount (e.g. regular_price = 100, discount_price = 80, discount_amount = 20)
+            BigDecimal totalDiscount = sumOfRegularPrices.subtract(sumOfDiscountPrices);
+
+            long noumberOfPurchases = purchaseRepository.countPurchasesByCurrency(currency);
+        });
     }
 }
