@@ -1,13 +1,12 @@
 package pl.discountApi.service;
 
-import java.lang.reflect.Array;
+import java.util.List;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Optional;
 
-import org.hibernate.mapping.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -16,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 import pl.discountApi.model.Product;
 import pl.discountApi.model.PromoCode;
 import pl.discountApi.model.Purchase;
+import pl.discountApi.model.SalesReportDTO;
 import pl.discountApi.repository.PurchaseRepository;
 
 @Service
@@ -85,7 +85,6 @@ public class PurchaseService
 
         Purchase purchase = new Purchase(productName, regularPrice, currency, discountPrice);
         purchaseRepository.save(purchase);
-
         return purchase;
     }
 
@@ -103,9 +102,9 @@ public class PurchaseService
         return purchase;
     }
 
-    public void generateSalesReport()
+    public List<SalesReportDTO> generateSalesReport()
     {
-        ArrayList<HashMap<String, String>> currencies = new ArrayList<>();
+        List<SalesReportDTO> salesReport = new ArrayList<>();
 
         purchaseRepository.findDistinctCurrency().forEach(currency -> {
             System.out.println("Currency: " + currency);
@@ -120,6 +119,11 @@ public class PurchaseService
             BigDecimal totalDiscount = sumOfRegularPrices.subtract(sumOfDiscountPrices);
 
             long noumberOfPurchases = purchaseRepository.countPurchasesByCurrency(currency);
+
+            SalesReportDTO salesReportDTO = new SalesReportDTO(currency, sumOfDiscountPrices, totalDiscount, noumberOfPurchases);
+            salesReport.add(salesReportDTO);
         });
+
+        return salesReport;
     }
 }

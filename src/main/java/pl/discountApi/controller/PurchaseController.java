@@ -1,6 +1,7 @@
 package pl.discountApi.controller;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,7 @@ import org.springframework.http.HttpHeaders;
 import pl.discountApi.model.Product;
 import pl.discountApi.model.PromoCode;
 import pl.discountApi.model.Purchase;
+import pl.discountApi.model.SalesReportDTO;
 import pl.discountApi.service.ProductService;
 import pl.discountApi.service.PromoCodeService;
 import pl.discountApi.service.PurchaseService;
@@ -122,6 +124,13 @@ public class PurchaseController
                 return new ResponseEntity<>(purchase, headers, HttpStatus.OK);
             }
         }
+    }
+
+    @GetMapping("/sales-report")
+    public ResponseEntity<List<SalesReportDTO>> getSalesReport()
+    {
+        // get sales report
+        return new ResponseEntity<>(purchaseService.generateSalesReport(), HttpStatus.OK);
     }
     
 }
