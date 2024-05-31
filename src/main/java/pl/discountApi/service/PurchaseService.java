@@ -2,15 +2,10 @@ package pl.discountApi.service;
 
 import java.util.List;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import pl.discountApi.model.Product;
 import pl.discountApi.model.PromoCode;
@@ -24,15 +19,13 @@ public class PurchaseService
     @Autowired
     private PurchaseRepository purchaseRepository;
     @Autowired
-    private ProductService productService;
-    @Autowired
     private PromoCodeService promoCodeService;
 
-    public Optional<BigDecimal> calculateDiscountPrice(String productName, String promoCode) 
+    public BigDecimal calculateDiscountPrice(Product product, PromoCode promoCode) 
     {
-        BigDecimal regularPrice = productService.getProductByName(productName).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found")).getPrice();
-        BigDecimal discount = promoCodeService.getPromoCode(promoCode).get().getDiscount();
-        String discountType = promoCodeService.getPromoCode(promoCode).get().getType();
+        BigDecimal regularPrice = product.getPrice();
+        BigDecimal discount = promoCode.getDiscount();
+        String discountType = promoCode.getType();
 
         BigDecimal discountPrice = BigDecimal.ZERO;
 
@@ -47,11 +40,12 @@ public class PurchaseService
 
         if (discountPrice.compareTo(BigDecimal.ZERO) < 0) 
         {
-            return Optional.of(BigDecimal.ZERO);
+            return BigDecimal.ZERO;
         }
-        return Optional.of(discountPrice);
+        return discountPrice;
     }
 
+    // calculate discount price with fixed amount
     private BigDecimal calculateDiscountPriceNormal(BigDecimal regularPrice, BigDecimal discount) 
     {
         BigDecimal discountPrice = regularPrice.subtract(discount);
@@ -63,6 +57,7 @@ public class PurchaseService
         return discountPrice;
     }
 
+    // calculate discount price with percentage
     private BigDecimal calculateDiscountPricePercentage(BigDecimal regularPrice, BigDecimal discount) 
     {
         BigDecimal discountPrice = regularPrice.subtract(regularPrice.multiply(discount.divide(BigDecimal.valueOf(100))));
@@ -74,34 +69,35 @@ public class PurchaseService
         return discountPrice;
     }
 
-    public Purchase purchaseProduct(String productName, String promoCode) 
+    // simulate purchase with promo code
+    public Purchase purchaseProduct(Product product, PromoCode promoCode) 
     {
-        BigDecimal regularPrice = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getPrice();
-        String currency = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getCurrency();
-        BigDecimal discountPrice = calculateDiscountPrice(productName, promoCode).orElseThrow(() -> new RuntimeException("Error while calculating discount price"));
+        BigDecimal regularPrice = product.getPrice();
+        String currency = product.getCurrency();
+        BigDecimal discountPrice = calculateDiscountPrice(product, promoCode);
         
         // update promo code usage count
-        promoCodeService.updatePromoCodeUsage(promoCode, promoCodeService.getPromoCode(promoCode).get().getUsageCount() + 1);
+        promoCodeService.updatePromoCodeUsage(promoCode, promoCode.getUsageCount() + 1);
 
-        Purchase purchase = new Purchase(productName, regularPrice, currency, discountPrice);
+        Purchase purchase = new Purchase(product.getName(), regularPrice, currency, discountPrice);
         purchaseRepository.save(purchase);
         return purchase;
     }
 
-    public Purchase purchaseProduct(String productName) 
+    // simulate purchase without promo code
+    public Purchase purchaseProduct(Product product) 
     {
-        Product product = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found"));
-    
         BigDecimal regularPrice = product.getPrice();
         String currency = product.getCurrency();
         
-        Purchase purchase = new Purchase(productName, regularPrice, currency, regularPrice);
+        Purchase purchase = new Purchase(product.getName(), regularPrice, currency, regularPrice);
 
         purchaseRepository.save(purchase);
     
         return purchase;
     }
 
+    // generate sales report mentioned in the task
     public List<SalesReportDTO> generateSalesReport()
     {
         List<SalesReportDTO> salesReport = new ArrayList<>();

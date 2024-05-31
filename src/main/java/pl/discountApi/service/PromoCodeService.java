@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import pl.discountApi.repository.PromoCodeRepository;
 import pl.discountApi.model.PromoCode;
+import pl.discountApi.model.PromoCodeValidationException;
 
 @Service
 public class PromoCodeService 
@@ -36,19 +37,34 @@ public class PromoCodeService
         return promoCodeRepository.findByCode(code);
     }
 
-    public PromoCode updatePromoCodeUsage(String code, Integer usage) 
+    public PromoCode updatePromoCodeUsage(PromoCode promoCode, Integer usage) 
     {
-        PromoCode promoCode = getPromoCode(code).orElseThrow(() -> new RuntimeException("Promo code not found"));
         promoCode.setUsageCount(usage);
         promoCodeRepository.save(promoCode);
         return promoCode;
     }
 
     //check if promo code is expired
-    public Boolean isPromoCodeExpired(String code) 
+    public Boolean isPromoCodeExpired(PromoCode promoCode) 
     {
-        PromoCode promoCode = getPromoCode(code).orElseThrow(() -> new RuntimeException("Promo code not found"));
         return promoCode.getExpirationDate().isBefore(java.time.LocalDate.now());
+    }
+
+    // validate promo code
+    public void validatePromoCode(PromoCode promoCode, String productCurrency) 
+    {
+        if (isPromoCodeExpired(promoCode)) 
+        {
+            throw new PromoCodeValidationException("Promo code expired.");
+        }
+        if (!promoCode.getCurrency().equals(productCurrency)) 
+        {
+            throw new PromoCodeValidationException("Currency mismatch.");
+        }
+        if (promoCode.getUsageLimit() <= promoCode.getUsageCount()) 
+        {
+            throw new PromoCodeValidationException("Promo code usage limit reached.");
+        }
     }
 
 }

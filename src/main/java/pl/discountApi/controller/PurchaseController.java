@@ -17,6 +17,7 @@ import org.springframework.http.HttpHeaders;
 
 import pl.discountApi.model.Product;
 import pl.discountApi.model.PromoCode;
+import pl.discountApi.model.PromoCodeValidationException;
 import pl.discountApi.model.Purchase;
 import pl.discountApi.model.SalesReportDTO;
 import pl.discountApi.service.ProductService;
@@ -37,92 +38,69 @@ public class PurchaseController
     @GetMapping("/calculate")
     public ResponseEntity<BigDecimal> calculateDiscountPrice(@RequestParam String productName, @RequestParam String promoCode)
     {
-        // get promoDetails and check if promo code exists otherwise throw exception
-        PromoCode promocodeDetails = promoCodeService.getPromoCode(promoCode).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Promo code not found"));
-
         // get product details and check if product exists otherwise throw exception
-        Product product = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found"));
+        Product product = productService.getProductByName(productName)
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
 
         HttpHeaders headers = new HttpHeaders();
+        
+        try 
+        {
+            // get promoDetails and check if promo code exists otherwise throw exception
+            PromoCode promocodeDetails = promoCodeService.getPromoCode(promoCode)
+                                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Promo code not found"));
 
-        // check if promo code is expired
-        if(promoCodeService.isPromoCodeExpired(promoCode))
-        {
-            // warning: "Promo code expired" 
-            headers.add("Warning", "Promo code expired.");
-            return new ResponseEntity<>(product.getPrice(), headers, HttpStatus.OK);
-        }
-        // check if currency matches       
-        else if(!promocodeDetails.getCurrency().equals(product.getCurrency()))
-        {
-            // warning: "Currency mismatch" 
-            headers.add("Warning", "Currency mismatch.");
-            return new ResponseEntity<>(product.getPrice(), headers, HttpStatus.OK);
-        }
-        else if (promocodeDetails.getUsageLimit() <= promocodeDetails.getUsageCount())
-        {
-            // warning: "Promo code usage limit reached"
-            headers.add("Warning", "Promo code usage limit reached.");
-            return new ResponseEntity<>(product.getPrice(), headers, HttpStatus.OK);
-        }
-        else
-        {
+            // validate promo code
+            promoCodeService.validatePromoCode(promocodeDetails, product.getCurrency());
+            
             // calculate discount price
-            BigDecimal discountPrice = purchaseService.calculateDiscountPrice(productName, promoCode).orElseThrow(() -> new RuntimeException("Error while calculating discount price"));
+            BigDecimal discountPrice = purchaseService.calculateDiscountPrice(product, promocodeDetails);
+            
             return new ResponseEntity<>(discountPrice, headers, HttpStatus.OK);
+        } 
+        catch (PromoCodeValidationException ex) 
+        {
+            headers.add("Warning", ex.getMessage());
+            return new ResponseEntity<>(product.getPrice(), headers, HttpStatus.OK);
         }
     }
 
-    // purchase product
     @PostMapping("/purchase")
     public ResponseEntity<Purchase> purchaseProduct(@RequestParam String productName, @RequestParam Optional<String> promoCode)
     {
         // get product details and check if product exists otherwise throw exception
-        Product product = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found"));
+        Product product = productService.getProductByName(productName)
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
 
-        // check if promo code is provided
-        if(promoCode.isEmpty())
+        HttpHeaders headers = new HttpHeaders();
+        
+        try 
         {
-            // purchase product without promo code
-            Purchase purchase = purchaseService.purchaseProduct(productName);
-            return new ResponseEntity<>(purchase, HttpStatus.OK);
-        }
-        else
+            if (promoCode.isPresent()) 
+            {
+                // get promoDetails and check if promo code exists otherwise throw exception
+                PromoCode promocodeDetails = promoCodeService.getPromoCode(promoCode.get())
+                                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Promo code not found"));
+
+                // validate promo code
+                promoCodeService.validatePromoCode(promocodeDetails, product.getCurrency());
+                
+                // purchase product with promo code
+                Purchase purchase = purchaseService.purchaseProduct(product, promocodeDetails);
+                return new ResponseEntity<>(purchase, HttpStatus.OK);
+            } 
+            else 
+            {
+                // purchase product without promo code
+                Purchase purchase = purchaseService.purchaseProduct(product);
+                return new ResponseEntity<>(purchase, HttpStatus.OK);
+            }
+        } 
+        catch (PromoCodeValidationException ex) 
         {
-            // get promoDetails and check if promo code exists otherwise throw exception
-            PromoCode promocodeDetails = promoCodeService.getPromoCode(promoCode.get()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Promo code not found"));
-
-            HttpHeaders headers = new HttpHeaders();
-
-            // check if promo code is expired
-            if(promoCodeService.isPromoCodeExpired(promoCode.get()))
-            {
-                // warning: "Promo code expired" 
-                headers.add("Warning", "Promo code expired.");
-                Purchase purchase = new Purchase(productName, product.getPrice(), product.getCurrency(), BigDecimal.ZERO);
-                return new ResponseEntity<>(purchase, headers, HttpStatus.OK);
-            }
-            // check if currency matches       
-            else if(!promocodeDetails.getCurrency().equals(product.getCurrency()))
-            {
-                // warning: "Currency mismatch" 
-                headers.add("Warning", "Currency mismatch.");
-                Purchase purchase = new Purchase(productName, product.getPrice(), product.getCurrency(), BigDecimal.ZERO);
-                return new ResponseEntity<>(purchase, headers, HttpStatus.OK);
-            }
-            else if (promocodeDetails.getUsageLimit() <= promocodeDetails.getUsageCount())
-            {
-                // warning: "Promo code usage limit reached"
-                headers.add("Warning", "Promo code usage limit reached.");
-                Purchase purchase = new Purchase(productName, product.getPrice(), product.getCurrency(), BigDecimal.ZERO);
-                return new ResponseEntity<>(purchase, headers, HttpStatus.OK);
-            }
-            else
-            {
-                // calculate discount price
-                Purchase purchase = purchaseService.purchaseProduct(productName, promoCode.get());
-                return new ResponseEntity<>(purchase, headers, HttpStatus.OK);
-            }
+            headers.add("Warning", ex.getMessage());
+            Purchase purchase = new Purchase(productName, product.getPrice(), product.getCurrency(), BigDecimal.ZERO);
+            return new ResponseEntity<>(purchase, headers, HttpStatus.OK);
         }
     }
 

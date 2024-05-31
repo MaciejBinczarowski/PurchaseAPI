@@ -41,7 +41,6 @@ public class PromoCode
     @Column(nullable = false)
     private BigDecimal discount;
 
-    // change it to enum in the future
     @Column(nullable = false)
     private String currency;
 
