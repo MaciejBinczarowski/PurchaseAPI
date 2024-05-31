@@ -36,6 +36,14 @@ public class PromoCodeService
         return promoCodeRepository.findByCode(code);
     }
 
+    public PromoCode updatePromoCodeUsage(String code, Integer usage) 
+    {
+        PromoCode promoCode = getPromoCode(code).orElseThrow(() -> new RuntimeException("Promo code not found"));
+        promoCode.setUsageCount(usage);
+        promoCodeRepository.save(promoCode);
+        return promoCode;
+    }
+
     //check if promo code is expired
     public Boolean isPromoCodeExpired(String code) 
     {

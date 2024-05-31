@@ -27,8 +27,7 @@ public class Purchase
     private BigDecimal regularPrice;
     private String currency;
 
-    @Column(columnDefinition = "default 0")
-    private BigDecimal discountAmount;
+    private BigDecimal discountAmount = BigDecimal.ZERO;
 
     @PrePersist
     public void prePersist() 

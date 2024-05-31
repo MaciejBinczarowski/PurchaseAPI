@@ -70,20 +70,32 @@ public class PurchaseService
         return discountPrice;
     }
 
-    // public void purchaseProduct(String productName, String promoCode) 
-    // {
-    //     BigDecimal regularPrice = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getPrice();
-    //     String currency = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getCurrency();
-    //     BigDecimal discountPrice = calculateDiscountPrice(productName, promoCode);
-    //     Purchase purchase = new Purchase(productName, regularPrice, currency, discountPrice);
-    //     purchaseRepository.save(purchase);
-    // }
+    public Purchase purchaseProduct(String productName, String promoCode) 
+    {
+        BigDecimal regularPrice = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getPrice();
+        String currency = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getCurrency();
+        BigDecimal discountPrice = calculateDiscountPrice(productName, promoCode).orElseThrow(() -> new RuntimeException("Error while calculating discount price"));
+        
+        // update promo code usage count
+        promoCodeService.updatePromoCodeUsage(promoCode, promoCodeService.getPromoCode(promoCode).get().getUsageCount() + 1);
 
-    // public void purchaseProduct(String productName) 
-    // {
-    //     BigDecimal regularPrice = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getPrice();
-    //     String currency = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found")).getCurrency();
-    //     Purchase purchase = new Purchase(productName, regularPrice, currency, regularPrice);
-    //     purchaseRepository.save(purchase);
-    // }
+        Purchase purchase = new Purchase(productName, regularPrice, currency, discountPrice);
+        purchaseRepository.save(purchase);
+
+        return purchase;
+    }
+
+    public Purchase purchaseProduct(String productName) 
+    {
+        Product product = productService.getProductByName(productName).orElseThrow(() -> new RuntimeException("Product not found"));
+    
+        BigDecimal regularPrice = product.getPrice();
+        String currency = product.getCurrency();
+        
+        Purchase purchase = new Purchase(productName, regularPrice, currency, regularPrice);
+
+        purchaseRepository.save(purchase);
+    
+        return purchase;
+    }
 }
