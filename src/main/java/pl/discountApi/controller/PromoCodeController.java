@@ -24,7 +24,7 @@ public class PromoCodeController
     @Autowired
     private PromoCodeService promoCodeService;
 
-@PostMapping
+    @PostMapping
     public ResponseEntity<PromoCode> createPromoCode(@RequestBody PromoCode promocode)
     {
         String code = promocode.getCode();
@@ -41,16 +41,15 @@ public class PromoCodeController
                 promocode.getUsageCount() < promocode.getUsageLimit()                    &&
                 promocode.getUsageCount() >= 0                                           &&
                 (
-                    "percentage".equals(promocode.getType()) || 
-                    "normal".equals(promocode.getType())
-                )                                                                        &&
-                (
-                    "percentage".equals(promocode.getType())                             &&
-                    promocode.getDiscount().compareTo(BigDecimal.valueOf(100)) <= 0
+                    (
+                        "percentage".equals(promocode.getType())                         &&
+                        promocode.getDiscount().compareTo(BigDecimal.ZERO) > 0           &&
+                        promocode.getDiscount().compareTo(BigDecimal.valueOf(100)) <= 0
+                    )                                                                    || 
+                    ("normal".equals(promocode.getType())                                && 
+                    promocode.getDiscount().compareTo(BigDecimal.ZERO) > 0)
                 )
-
-
-                ) 
+            ) 
             {
                 PromoCode createdPromocode = promoCodeService.createPromoCode(promocode);
                 return new ResponseEntity<>(createdPromocode, HttpStatus.CREATED);

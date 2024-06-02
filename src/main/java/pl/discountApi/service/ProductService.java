@@ -15,20 +15,29 @@ public class ProductService
     @Autowired
     private ProductRepository productRepository;
 
-    public Product createProduct(Product product) {
+    public Product createProduct(Product product) 
+    {
         return productRepository.save(product);
     }
 
-    public List<Product> getAllProducts() {
+    public List<Product> getAllProducts() 
+    {
         return productRepository.findAll();
     }
 
-    public Optional<Product> getProductById(Long id) {
+    public Optional<Product> getProductById(Long id) 
+    {
         return productRepository.findById(id);
     }
 
-    public Product updateProduct(Long id, Product productDetails) {
-        Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
+    public Product updateProduct(Long id, Product productDetails) 
+    {
+        if (!productRepository.existsById(id)) 
+        {
+            createProduct(productDetails);
+            
+        }
+        Product product = productRepository.findById(id).get();
         product.setName(productDetails.getName());
         product.setDescription(productDetails.getDescription());
         product.setPrice(productDetails.getPrice());
@@ -36,12 +45,18 @@ public class ProductService
         return productRepository.save(product);
     }
 
-    public void deleteProduct(Long id) {
-        Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
-        productRepository.delete(product);
+    public void deleteProduct(Long id) 
+    {
+        Optional<Product> product = productRepository.findById(id);
+        if (product.isEmpty()) 
+        {
+            return;
+        }
+        productRepository.delete(product.get());
     }
 
-    public Optional<Product> getProductByName(String name) {
+    public Optional<Product> getProductByName(String name) 
+    {
         return productRepository.findByName(name);
     }
 }
