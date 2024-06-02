@@ -67,4 +67,10 @@ public class PromoCodeService
         }
     }
 
+    // check if promo code contains invalid characters
+    public boolean containsInvalidCharacters(String code) 
+    {
+        return code.matches("^[a-zA-Z0-9]*$");
+    }
+
 }

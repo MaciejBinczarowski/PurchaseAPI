@@ -39,17 +39,27 @@ public class PurchaseController
     public ResponseEntity<BigDecimal> calculateDiscountPrice(@RequestParam String productName, @RequestParam String promoCode)
     {
         // get product details and check if product exists otherwise throw exception
-        Product product = productService.getProductByName(productName)
-                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+        Optional<Product> productOptional = productService.getProductByName(productName);
+
+        if (productOptional.isEmpty()) 
+        {
+            return new ResponseEntity<>( BigDecimal.valueOf(-1),HttpStatus.NOT_FOUND);
+        }
+        Product product = productOptional.get();
+
+        // get promoDetails and check if promo code exists otherwise throw exception
+        Optional<PromoCode> promoCodeOptional = promoCodeService.getPromoCode(promoCode);
+
+        if (promoCodeOptional.isEmpty()) 
+        {
+            return new ResponseEntity<>(BigDecimal.valueOf(-1),HttpStatus.NOT_FOUND);
+        }
+        PromoCode promocodeDetails = promoCodeOptional.get();
 
         HttpHeaders headers = new HttpHeaders();
         
         try 
         {
-            // get promoDetails and check if promo code exists otherwise throw exception
-            PromoCode promocodeDetails = promoCodeService.getPromoCode(promoCode)
-                                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Promo code not found"));
-
             // validate promo code
             promoCodeService.validatePromoCode(promocodeDetails, product.getCurrency());
             
@@ -69,38 +79,49 @@ public class PurchaseController
     public ResponseEntity<Purchase> purchaseProduct(@RequestParam String productName, @RequestParam Optional<String> promoCode)
     {
         // get product details and check if product exists otherwise throw exception
-        Product product = productService.getProductByName(productName)
-                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+        Optional<Product> productOptional = productService.getProductByName(productName);
+
+        if (productOptional.isEmpty()) 
+        {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        Product product = productOptional.get();
+
+        // get promoDetails and check if promo code exists otherwise throw exception
+        Optional<PromoCode> promoCodeOptional = promoCodeService.getPromoCode(promoCode.get());
+
+        if (promoCodeOptional.isEmpty()) 
+        {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        PromoCode promocodeDetails = promoCodeOptional.get();
 
         HttpHeaders headers = new HttpHeaders();
         
-        try 
+        if (promoCode.isPresent()) 
         {
-            if (promoCode.isPresent()) 
+            try
             {
-                // get promoDetails and check if promo code exists otherwise throw exception
-                PromoCode promocodeDetails = promoCodeService.getPromoCode(promoCode.get())
-                                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Promo code not found"));
-
-                // validate promo code
+                 // validate promo code
                 promoCodeService.validatePromoCode(promocodeDetails, product.getCurrency());
                 
                 // purchase product with promo code
                 Purchase purchase = purchaseService.purchaseProduct(product, promocodeDetails);
                 return new ResponseEntity<>(purchase, HttpStatus.OK);
             } 
-            else 
+            catch (PromoCodeValidationException ex) 
             {
-                // purchase product without promo code
-                Purchase purchase = purchaseService.purchaseProduct(product);
-                return new ResponseEntity<>(purchase, HttpStatus.OK);
+                // return product price if promo code is invalid
+                headers.add("Warning", ex.getMessage());
+                Purchase purchase = new Purchase(productName, product.getPrice(), product.getCurrency(), BigDecimal.ZERO);
+                return new ResponseEntity<>(purchase, headers, HttpStatus.OK);
             }
         } 
-        catch (PromoCodeValidationException ex) 
+        else 
         {
-            headers.add("Warning", ex.getMessage());
-            Purchase purchase = new Purchase(productName, product.getPrice(), product.getCurrency(), BigDecimal.ZERO);
-            return new ResponseEntity<>(purchase, headers, HttpStatus.OK);
+            // purchase product without promo code
+            Purchase purchase = purchaseService.purchaseProduct(product);
+            return new ResponseEntity<>(purchase, HttpStatus.OK);
         }
     }
 
