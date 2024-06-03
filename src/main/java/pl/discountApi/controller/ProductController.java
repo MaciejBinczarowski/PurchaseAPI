@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -21,8 +22,25 @@ public class ProductController
     @PostMapping
     public ResponseEntity<Product> createProduct(@RequestBody Product product) 
     {
-        Product createdProduct = productService.createProduct(product);
-        return ResponseEntity.ok(createdProduct);
+        if (product.getName() == null || product.getPrice() == null || product.getCurrency() == null) 
+        {
+            return ResponseEntity.badRequest().build();
+        }
+
+        if (product.getPrice().compareTo(BigDecimal.ZERO) < 0) 
+        {
+            return ResponseEntity.badRequest().build();
+        }
+
+        try 
+        {
+            Product createdProduct = productService.createProduct(product);
+            return new ResponseEntity<>(createdProduct, HttpStatus.CREATED);
+        } 
+        catch (Exception e) 
+        {
+            return new ResponseEntity<>(product, HttpStatus.BAD_REQUEST);
+        }
     }
 
     @GetMapping
